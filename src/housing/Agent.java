@@ -114,6 +114,9 @@ public class Agent implements Runnable{
 					this.setSuccessor(this.successor.getSuccessor());
 					System.out.println("From- the while loop " + this.portNum + " my succ is : " + this.successor.portNum);
 					succActive = this.successor.active;
+					if (this.successor == this) {
+						break;
+					}
 					if(this.successor.assigned == true) {
 						// I have not found any cycles, I should exit the stage
 						System.out.println(" i need to exit the stage "+portNum);
@@ -133,6 +136,7 @@ public class Agent implements Runnable{
 				}
 				if (this.successor == this) {
 					System.out.println("Detected a cycle from: " + this.portNum);
+					children.remove(this);
 					for (Agent a:this.children) {
 						System.out.println("*****>>>MY CHILDREN ARE " + a.portNum+" Me: "+this.portNum);
 					}
@@ -262,13 +266,20 @@ public class Agent implements Runnable{
 		if (this.assigned == false) {
 			this.active = true;
 //			System.out.println("CALLING RECEIVE NEXT STAGE  FOR POCESS " + this.portNum);
-			prefNumber++;
-			if (prefNumber < preference.size()) {
-				int top = preference.get(prefNumber); // top is the next available house choice
-				this.next = pref.get(top);
-				this.nextPref = top;
-//				System.out.println("for " + portNum + " top is " + top);
+			for (int i =0;i<preference.size();i++) {
+				int top = preference.get(i);
+				if (pref.containsKey(top)) {
+					this.next = pref.get(top);
+					this.nextPref = top;
+					break;
+				}
 			}
+//			if (prefNumber < preference.size()) {
+//				int top = preference.get(prefNumber); // top is the next available house choice
+//				this.next = pref.get(top);
+//				this.nextPref = top;
+//				System.out.println("for " + portNum + " top is " + top);
+//			}
 		}
 		System.out.println("executed recieve next stage "+portNum);
 		return;
