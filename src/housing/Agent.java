@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class Agent implements Runnable{
+	int numAgents = 4;
 	public static int[] ports;
 	public boolean active;
 	public int portNum;
@@ -39,7 +40,7 @@ public class Agent implements Runnable{
 	int house;
 	static HashMap<Integer, Agent> pref = new HashMap<Integer, Agent>();
 	ArrayList<Integer> preference = new ArrayList<Integer>();
-	int prefNumber = -1;
+//	int prefNumber = -1;
 	Agent parent;
 	
 	public Agent getParent() {
@@ -72,7 +73,7 @@ public class Agent implements Runnable{
 	public boolean flipCoin() {
 		double randNum = Math.random();
 		boolean coin = false;
-		if (randNum >=0.5) {
+		if (randNum >= 0.5) {
 			coin = true;
 		}
 		return coin;
@@ -163,14 +164,15 @@ public class Agent implements Runnable{
 			this.children.add(a);
 			a.setParent(this);
 		}
-		threads = new Thread[3];
-		for(int i=0; i<3; i++) {
+		threads = new Thread[numAgents];
+		System.out.println("from root, length of agents is "+Agent.agents.size());
+		for(int i=0; i<numAgents; i++) {
 			threads[i] = new Thread(Agent.agents.get(i));
 			threads[i].start();
 		}
 		
 		// Joining threads
-		for(int i=0; i<3; i++) {
+		for(int i=0; i<numAgents; i++) {
         	try {
 				threads[i].join();
 			} catch (InterruptedException e) {
@@ -285,12 +287,12 @@ public class Agent implements Runnable{
 		return;
 	}
 
-	public void makeSuccessor() {
-		prefNumber++;
-		int top = preference.get(prefNumber);
-		this.next = pref.get(top);
-		this.successor = next;
-	}
+//	public void makeSuccessor() {
+//		prefNumber++;
+//		int top = preference.get(prefNumber);
+//		this.next = pref.get(top);
+//		this.successor = next;
+//	}
 	
 	public void receiveOk(int from, int numOk) {
 		Agent myParent = this.getParent();
