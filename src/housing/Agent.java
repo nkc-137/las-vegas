@@ -104,12 +104,7 @@ public class Agent implements Runnable{
 				for (Integer key: pref.keySet()) {
 					System.out.println("****** This is the key: " + key + " vlaue is : " + pref.get(key).portNum);
 				}
-//				System.out.println("**********From the bigger while loop " + this.portNum + " giving assinged status");
-//				for (Agent a:agents) {
-//					System.out.println("***ASSIGNED STATUS FOR: " + a.portNum + " VALUE " + a.assigned );
-//				}
 				while (succActive == false) {
-//					System.out.println("Doing the while loop from: " + this.portNum);
 					children.add(successor);
 					successor.setParent(this);
 					this.setSuccessor(this.successor.getSuccessor());
@@ -121,10 +116,6 @@ public class Agent implements Runnable{
 					if(this.successor.assigned == true) {
 						// I have not found any cycles, I should exit the stage
 						System.out.println(" i need to exit the stage "+portNum);
-//						this.successor = this;
-//						for(Agent a: children) {
-//							a.parent = this.parent;
-//						}
 						this.children.clear();
 						active = false;
 						this.parent.receiveOk(portNum, 1);
@@ -148,7 +139,6 @@ public class Agent implements Runnable{
 
 		// Notify step
 		if (this.successor == this) {
-//			System.out.println("Going to notify from: " + this.portNum);
 			this.inCycle = true;
 			Request req = new Request("Cycle");
 			for (Agent child: this.children) {
@@ -220,26 +210,18 @@ public class Agent implements Runnable{
 		this.successor = next;
 		//Execute cycle algo
 		this.findCycle();
-//		System.out.println("Finished exec findcycle for : " + this.portNum);
-//		System.out.println("Printing the children values of all:");
-//		for (Agent a: Agent.agents) {
-//			System.out.println(a.portNum + " " + a.children);
-//		}
 		if (this.inCycle == true) { //parent
 			this.changeInCycle();
 		}
-//		System.out.println("Done with start stage method :" + this.portNum);
 	}
 	
 	public void changeInCycle() {
-//		System.out.println("**********ASSIGNED BECAME TRUE FOR : " + this.portNum);
 		this.house = this.nextPref;
 		this.assigned = true;
 		// Broadcast remove to all
 		for (Agent a: agents) {
 			a.remove(this.house);
 		}
-//		System.out.println("These are my children: " + this.children);
 		if (this.children.size() == 0) {
 			Agent myParent = this.getParent();
 			if (myParent.isRoot == false) {
@@ -267,7 +249,6 @@ public class Agent implements Runnable{
 		System.out.println("********* I AM IN RECEIVE NEXT STAGE : " + this.portNum + " ASSIENGED IS " + this.assigned);
 		if (this.assigned == false) {
 			this.active = true;
-//			System.out.println("CALLING RECEIVE NEXT STAGE  FOR POCESS " + this.portNum);
 			for (int i =0;i<preference.size();i++) {
 				int top = preference.get(i);
 				if (pref.containsKey(top)) {
@@ -276,23 +257,10 @@ public class Agent implements Runnable{
 					break;
 				}
 			}
-//			if (prefNumber < preference.size()) {
-//				int top = preference.get(prefNumber); // top is the next available house choice
-//				this.next = pref.get(top);
-//				this.nextPref = top;
-//				System.out.println("for " + portNum + " top is " + top);
-//			}
 		}
 		System.out.println("executed recieve next stage "+portNum);
 		return;
 	}
-
-//	public void makeSuccessor() {
-//		prefNumber++;
-//		int top = preference.get(prefNumber);
-//		this.next = pref.get(top);
-//		this.successor = next;
-//	}
 	
 	public void receiveOk(int from, int numOk) {
 		Agent myParent = this.getParent();
