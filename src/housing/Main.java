@@ -8,7 +8,7 @@ import java.util.concurrent.CyclicBarrier;
 public class Main {
 	public static void main(String[] args) {
 		CyclicBarrier barrier = new CyclicBarrier(4);
-        Agent agent1 = new Agent(0, new ArrayList<Integer> (Arrays.asList(1, 2, 3)), 1);
+		Agent agent1 = new Agent(0, new ArrayList<Integer> (Arrays.asList(2, 1, 3)), 1);
         Agent agent2 = new Agent(1, new ArrayList<Integer> (Arrays.asList(2, 1, 3)), 3);
         Agent agent3 = new Agent(2, new ArrayList<Integer> (Arrays.asList(3, 1, 2)), 2);
         Agent root = new Agent(50, new ArrayList<Integer> (Arrays.asList(3, 1, 2)), -1);
@@ -40,7 +40,6 @@ public class Main {
 			e.printStackTrace();
 		}
         
-        System.out.println("Printing from main");
         for (Agent a: agentList) {
         	System.out.println("Agent " + a.portNum + " house : " + a.house);
         }
@@ -48,3 +47,21 @@ public class Main {
 	
 	
 }
+
+/*
+ * 2nd example
+ * Agent agent1 = new Agent(0, new ArrayList<Integer> (Arrays.asList(2, 1, 3)), 1);
+        Agent agent2 = new Agent(1, new ArrayList<Integer> (Arrays.asList(2, 1, 3)), 3);
+        Agent agent3 = new Agent(2, new ArrayList<Integer> (Arrays.asList(3, 1, 2)), 2);
+        Agent root = new Agent(50, new ArrayList<Integer> (Arrays.asList(3, 1, 2)), -1);
+        */
+
+
+/*
+ * 1st example
+ *Agent agent1 = new Agent(0, new ArrayList<Integer> (Arrays.asList(1, 2, 3)), 3);
+        Agent agent2 = new Agent(1, new ArrayList<Integer> (Arrays.asList(2, 1, 3)), 1);
+        Agent agent3 = new Agent(2, new ArrayList<Integer> (Arrays.asList(3, 1, 2)), 2);
+        Agent root = new Agent(50, new ArrayList<Integer> (Arrays.asList(3, 1, 2)), -1); 
+ * 
+*/
