@@ -14,6 +14,10 @@ public class Agent implements Runnable{
 	public boolean active;
 	public int portNum;
 	boolean inCycle;
+	int countOk = 0;
+	int numOks = 1;
+	boolean alreadySent = false;
+	boolean isRoot = false;
 	boolean coinValue = false;
 	Agent successor;
 	CyclicBarrier barrier;
@@ -98,11 +102,11 @@ public class Agent implements Runnable{
 				}
 				boolean succActive = this.successor.active; // Get active status from successor
 				while (succActive == false) {
-					System.out.println("Doing the while loop from: " + this.portNum);
+//					System.out.println("Doing the while loop from: " + this.portNum);
 					children.add(successor);
 					successor.setParent(this);
 					this.setSuccessor(this.successor.getSuccessor());
-					System.out.println("Printing from while loop " + this.successor.portNum);
+//					System.out.println("Printing from while loop " + this.successor.portNum);
 					succActive = this.successor.active;
 				}
 				if (this.successor == this) {
@@ -124,37 +128,53 @@ public class Agent implements Runnable{
 		}
 	}
 	
-	@Override
-	public void run() {
-//		System.out.println("Run being called from : " + this.portNum);
-		this.receiveNextStage();
-		Thread.yield();
-		try {
-			barrier.await();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (BrokenBarrierException e) {
-			e.printStackTrace();
+	// only run for root node (env)
+	public void envFn() {
+		for (Agent a:agents) {
+			this.children.add(a);
+			a.setParent(this);
 		}
-		this.startStage();
-//		try {
-//			barrier.await(5L, TimeUnit.SECONDS);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		} catch (BrokenBarrierException e) {
-//			e.printStackTrace();
-//		} catch (TimeoutException e) {
-//			e.printStackTrace();
-//		}
-//		System.out.println("after startStage in "+this.portNum);
+		Thread[] threads = new Thread[3];
+		for(int i=0; i<3; i++) {
+			threads[i] = new Thread(Agent.agents.get(i));
+			threads[i].start();
+		}
+		
+		// Joining threads
+		for(int i=0; i<3; i++) {
+        	try {
+				threads[i].join();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+        }
 	}
 	
+	@Override
+	public void run() {
+		//		System.out.println("Run being called from : " + this.portNum);
+		if (isRoot == true) {
+			this.envFn();
+		} else {
+			this.receiveNextStage();
+			Thread.yield();
+			try {
+				barrier.await();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			} catch (BrokenBarrierException e) {
+				e.printStackTrace();
+			}
+			this.startStage();
+		}
+	}
+
 	public void startStage() {
-		System.out.println("Starting the stage from: " + this.portNum);
+//		System.out.println("Starting the stage from: " + this.portNum);
 		this.successor = next;
 		//Execute cycle algo
 		this.findCycle();
-		System.out.println("Finished exec findcycle for : " + this.portNum);
+//		System.out.println("Finished exec findcycle for : " + this.portNum);
 //		synchronized (this) {
 //			System.out.println("Printing the inCycle values of all: " + this.portNum);
 //			for (Agent a: Agent.agents) {
@@ -174,21 +194,26 @@ public class Agent implements Runnable{
 		if (this.inCycle == true) {
 			this.changeInCycle();
 		}
-		System.out.println("Done with start stage method :" + this.portNum);
+//		System.out.println("Done with start stage method :" + this.portNum);
 	}
 	
 	public void changeInCycle() {
-		System.out.println("Assigned became true for: " + this.portNum);
+//		System.out.println("**********ASSIGNED BECAME TRUE FOR : " + this.portNum);
 		this.house = this.nextPref;
 		this.assigned = true;
 		// Broadcast remove to all
 		for (Agent a: agents) {
 			a.remove(this.house);
 		}
-		System.out.println("These are my children: " + this.children);
+//		System.out.println("These are my children: " + this.children);
 		if (this.children.size() == 0) {
 			Agent myParent = this.getParent();
-			myParent.receiveOk();
+			myParent.receiveOk(this.portNum, this.numOks);
+		} 
+		else if (countOk == this.children.size() && !alreadySent) {
+			alreadySent = true;
+			Agent myParent = this.getParent();
+			myParent.receiveOk(this.portNum, numOks);
 		}
 	}
 	
@@ -201,17 +226,20 @@ public class Agent implements Runnable{
 	}
 	
 	public void receiveNextStage() {
+		System.out.println("********* I AM IN RECEIVE NEXT STAGE : " + this.portNum + " ASSIENGED IS " + this.assigned);
 		if (this.assigned == false) {
 			this.active = true;
-			System.out.println("CALLING RECE NEXT STAGE  FOR POCESS " + this.portNum);
-			prefNumber++; // TODO for variable number of preferences
-			int top = preference.get(prefNumber); // top is the next available house choice
-			this.next = pref.get(top);
-			this.nextPref = top;
-			System.out.println("for " + portNum + " top is " + top);
+			System.out.println("CALLING RECEIVE NEXT STAGE  FOR POCESS " + this.portNum);
+			prefNumber++;
+			if (prefNumber < preference.size()) {
+				int top = preference.get(prefNumber); // top is the next available house choice
+				this.next = pref.get(top);
+				this.nextPref = top;
+//				System.out.println("for " + portNum + " top is " + top);
+			}
 		}
 	}
-	
+
 	public void makeSuccessor() {
 		prefNumber++;
 		int top = preference.get(prefNumber);
@@ -219,15 +247,21 @@ public class Agent implements Runnable{
 		this.successor = next;
 	}
 	
-	public void receiveOk() {
+	public void receiveOk(int from, int numOk) {
 		Agent myParent = this.getParent();
-		System.out.println("OK received by : " + this.portNum);
-		if (myParent == null) { // Im the root
-//			for (Agent a: agents) {
-//				a.receiveNextStage();
-//			}
-		} else {
-			myParent.receiveOk();
+		countOk++;
+		numOks += numOk;
+		System.out.println("OK RECEIVED BY : " + this.portNum + " FROM " + from);
+		if (countOk == this.children.size() && !alreadySent && this.assigned== true) {
+			alreadySent = true;
+			myParent.receiveOk(this.portNum, numOks);
+		}
+		if (isRoot == true) {
+			if (numOks == 1+this.children.size()) {
+				for (Agent a:agents) {
+					a.receiveNextStage();
+				}
+			}
 		}
 	}
 	
