@@ -73,21 +73,14 @@ public class Agent implements AgentRMI, Runnable{
 		this.ports = ports;
 		this.peers = peers;
 		this.pref = new HashMap<Integer, Agent>();
-		System.out.println("i am "+portNum +" with host "+peers[portNum]+" portId "+ports[portNum]);
 		
 		try {
 			System.setProperty("java.rmi.server.hostname", this.peers[portNum]);
-			System.out.println("line 1 ");
-			System.out.println("line 1 :" + this.ports[portNum]+ " ****" );
 			registry = LocateRegistry.createRegistry(this.ports[portNum]);
-			System.out.println("line 2 ");
 			stub = (AgentRMI) UnicastRemoteObject.exportObject(this, this.ports[portNum]);
-			System.out.println("line 3 ");
 			registry.rebind("Agent", stub);
-			System.out.println("line 4 ");
 		} 
 		catch (RemoteException e) {
-			System.out.println("excpetion in constructor");
 			e.printStackTrace();
 		} 
 	}
@@ -124,9 +117,9 @@ public class Agent implements AgentRMI, Runnable{
 			// Explore step
 			if (active == true) {
 //				System.out.println("Active is true! " + this.portNum);
-				if (successor.portNum == 1) { //TODO:remove deterministic
-					this.successor.active = false;
-				}
+//				if (successor.portNum == 1) { //TODO:remove deterministic
+//					this.successor.active = false;
+//				}
 				boolean succActive = this.successor.active; // Get active status from successor
 				System.out.println("*********This is the map : ");
 				for (Integer key: pref.keySet()) {
@@ -274,7 +267,6 @@ public class Agent implements AgentRMI, Runnable{
 	
 	@Override
 	public void receiveCycle() {
-		System.out.println(" --- --- -- in receive cycle "+portNum);
 		this.inCycle = true;
 		this.changeInCycle();
 		for (Agent c: this.children) {
@@ -302,7 +294,6 @@ public class Agent implements AgentRMI, Runnable{
 	
 	@Override
 	public void receiveOk(Request req) { //int from, int numOk
-		System.out.println(" --- --- -- in receiveOk "+portNum);
 		int from = req.portNum;
 		int req_numOk = req.numOk;
 		Agent myParent = this.getParent();
@@ -328,7 +319,6 @@ public class Agent implements AgentRMI, Runnable{
 	
 	@Override
 	public void removePref(Request request) {
-		System.out.println(" - -- -- - removePref called in "+portNum);
 		int house = request.house;
 		this.pref.remove(house);
 	}
@@ -340,18 +330,12 @@ public class Agent implements AgentRMI, Runnable{
             Registry registry=LocateRegistry.getRegistry(this.ports[id]);
             stub=(AgentRMI) registry.lookup("Agent");
             if(rmi.equals("receiveCycle")) {
-            	System.out.println("Call: receiveCycle");
                 stub.receiveCycle();
-                System.out.println("Call: receiveCycle --- -");
             }
             else if(rmi.equals("removePref")) {
-            	System.out.println("Call: removePref");
                 stub.removePref(req);
-                System.out.println("Call: removePref --- -");
             }
             else if(rmi.equals("receiveOk")) {
-            	System.out.println("Call: receiveOk");
-                System.out.println("Call: receiveOk --- -");
                 stub.receiveOk(req);
             }
             else

@@ -43,6 +43,14 @@ public class Main {
         for (Agent a: agentList) {
         	System.out.println("Agent " + a.portNum + " house : " + a.house);
         }
+        
+        for (Agent a: agentList) {
+			if(a != null){
+				a.Kill();
+			}	
+		}
+        root.Kill();
+        return;
 	}
 	
 	static void thirdExample(CyclicBarrier barrier, ArrayList<Agent> agentList, String[] peers, int[] ports) {
