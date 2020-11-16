@@ -1,7 +1,9 @@
 package housing;
 
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,14 +12,18 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class Agent implements Runnable{
-	int numAgents = 4;
-	public static int[] ports;
+public class Agent implements AgentRMI, Runnable{
+	int numAgents = 3;
+	int[] ports;
+	String[] peers;
+	AgentRMI stub;
+	Registry registry;
+	
 	public boolean active;
 	public int portNum;
 	boolean inCycle;
 	int countOk = 0;
-	int numOks = 1;
+	int numOks = 1; //remove
 	boolean alreadySent = false;
 	boolean isRoot = false;
 	boolean coinValue = false;
@@ -25,22 +31,18 @@ public class Agent implements Runnable{
 	CyclicBarrier barrier;
 	int nextPref;
 	Thread[] threads;
-	public CyclicBarrier getBarrier() {
-		return barrier;
-	}
 
 	public void setBarrier(CyclicBarrier barrier) {
 		this.barrier = barrier;
 	}
 
-	static ArrayList<Agent> agents = new ArrayList<Agent>();
+	static ArrayList<Agent> agents = new ArrayList<Agent>(); //remove
 	
 	Agent next;
 	boolean assigned;
 	int house;
-	static HashMap<Integer, Agent> pref = new HashMap<Integer, Agent>();
+	HashMap<Integer, Agent> pref;
 	ArrayList<Integer> preference = new ArrayList<Integer>();
-//	int prefNumber = -1;
 	Agent parent;
 	
 	public Agent getParent() {
@@ -61,13 +63,39 @@ public class Agent implements Runnable{
 
 	HashSet<Agent> children;
 	
-	public Agent(int portNum, ArrayList<Integer> preference, int house) {
+	public Agent(int portNum, ArrayList<Integer> preference, int house, String[] peers, int[] ports) {
 		this.active = true;
 		this.inCycle = false;
 		this.children = new HashSet<Agent>();
 		this.portNum = portNum;
 		this.preference = preference;
 		this.house = house;
+		this.ports = ports;
+		this.peers = peers;
+		this.pref = new HashMap<Integer, Agent>();
+		System.out.println("i am "+portNum +" with host "+peers[portNum]+" portId "+ports[portNum]);
+		
+		try {
+			System.setProperty("java.rmi.server.hostname", this.peers[portNum]);
+			System.out.println("line 1 ");
+			System.out.println("line 1 :" + this.ports[portNum]+ " ****" );
+			registry = LocateRegistry.createRegistry(this.ports[portNum]);
+			System.out.println("line 2 ");
+			stub = (AgentRMI) UnicastRemoteObject.exportObject(this, this.ports[portNum]);
+			System.out.println("line 3 ");
+			registry.rebind("Agent", stub);
+			System.out.println("line 4 ");
+		} 
+		catch (RemoteException e) {
+			System.out.println("excpetion in constructor");
+			e.printStackTrace();
+		} 
+	}
+	
+	public void setPref(HashMap<Integer, Agent> map) {
+		for (Integer k : map.keySet()) {
+			this.pref.put(k, map.get(k));
+		}
 	}
 	
 	public boolean flipCoin() {
@@ -108,7 +136,7 @@ public class Agent implements Runnable{
 					children.add(successor);
 					successor.setParent(this);
 					this.setSuccessor(this.successor.getSuccessor());
-					System.out.println("From- the while loop " + this.portNum + " my succ is : " + this.successor.portNum);
+//					System.out.println("From- the while loop " + this.portNum + " my succ is : " + this.successor.portNum);
 					succActive = this.successor.active;
 					if (this.successor == this) {
 						break;
@@ -118,7 +146,9 @@ public class Agent implements Runnable{
 						System.out.println(" i need to exit the stage "+portNum);
 						this.children.clear();
 						active = false;
-						this.parent.receiveOk(portNum, 1);
+						Request req = new Request(this.portNum, -1, 1);
+						this.Call("receiveOk", req, this.parent.portNum); //TODO: parent
+//						this.parent.receiveOk(portNum, 1);
 						return;
 					}
 				}
@@ -128,7 +158,7 @@ public class Agent implements Runnable{
 				}
 				if (this.successor == this) {
 					System.out.println("Detected a cycle from: " + this.portNum);
-					children.remove(this);
+					children.remove(this); // remove itself from the set of children
 					for (Agent a:this.children) {
 						System.out.println("*****>>>MY CHILDREN ARE " + a.portNum+" Me: "+this.portNum);
 					}
@@ -140,10 +170,10 @@ public class Agent implements Runnable{
 		// Notify step
 		if (this.successor == this) {
 			this.inCycle = true;
-			Request req = new Request("Cycle");
 			for (Agent child: this.children) {
 				// send cycle to child
-				child.receiveCycle();
+				this.Call("receiveCycle", null, child.portNum);
+//				child.receiveCycle();
 			}
 		}
 	}
@@ -218,31 +248,39 @@ public class Agent implements Runnable{
 	public void changeInCycle() {
 		this.house = this.nextPref;
 		this.assigned = true;
-		// Broadcast remove to all
+		// Broadcast removePref to all
 		for (Agent a: agents) {
-			a.remove(this.house);
+			Request req = new Request(this.portNum, this.house, -1);
+			this.Call("removePref", req, a.portNum);
 		}
 		if (this.children.size() == 0) {
 			Agent myParent = this.getParent();
 			if (myParent.isRoot == false) {
-				myParent.receiveOk(this.portNum, this.numOks);
+				Request req = new Request(this.portNum, -1, this.numOks);
+				this.Call("receiveOk", req, this.parent.portNum); //TODO: parent
+//				myParent.receiveOk(this.portNum, this.numOks);
 			}
 		} 
 		else if (countOk == this.children.size() && !alreadySent) {
 			alreadySent = true;
 			Agent myParent = this.getParent();
 			if (myParent.isRoot == false) {
-				myParent.receiveOk(this.portNum, this.numOks);
+				Request req = new Request(this.portNum, -1, this.numOks);
+				this.Call("receiveOk", req, this.parent.portNum); //TODO: parent
+//				myParent.receiveOk(this.portNum, this.numOks);
 			}
 		}
 	}
 	
+	@Override
 	public void receiveCycle() {
+		System.out.println(" --- --- -- in receive cycle "+portNum);
 		this.inCycle = true;
 		this.changeInCycle();
 		for (Agent c: this.children) {
-			c.receiveCycle();
+			this.Call("receiveCycle", null, c.portNum);
 		}
+		return;
 	}
 	
 	public void receiveNextStage() {
@@ -262,15 +300,22 @@ public class Agent implements Runnable{
 		return;
 	}
 	
-	public void receiveOk(int from, int numOk) {
+	@Override
+	public void receiveOk(Request req) { //int from, int numOk
+		System.out.println(" --- --- -- in receiveOk "+portNum);
+		int from = req.portNum;
+		int req_numOk = req.numOk;
 		Agent myParent = this.getParent();
 		countOk++;
-		numOks += numOk;
+		numOks += req_numOk;
 		System.out.println("OK RECEIVED BY : " + this.portNum + " FROM " + from);
 		if (countOk == this.children.size() && !alreadySent && this.assigned== true) {
 			alreadySent = true;
 			if (myParent.isRoot == false) {
-				myParent.receiveOk(this.portNum, numOks);
+				req.portNum = this.portNum;
+				req.numOk = numOks;
+				this.Call("receiveOk", req, myParent.portNum); //TODO: get the parent id, chnage to ports[id]
+//				myParent.receiveOk(this.portNum, numOks);
 			}
 		}
 		if (isRoot == true) {
@@ -281,59 +326,51 @@ public class Agent implements Runnable{
 		}
 	}
 	
+	@Override
+	public void removePref(Request request) {
+		System.out.println(" - -- -- - removePref called in "+portNum);
+		int house = request.house;
+		this.pref.remove(house);
+	}
 	
-	public Response Call(String rmi, Request req, Agent child){
+	public Response Call(String rmi, Request req, int id){
         Response callReply = null;
-
         AgentRMI stub;
-        try{
-        	int portNum = child.portNum;
-            Registry registry=LocateRegistry.getRegistry(portNum);
+        try {
+            Registry registry=LocateRegistry.getRegistry(this.ports[id]);
             stub=(AgentRMI) registry.lookup("Agent");
-            if(rmi.equals("Cycle"))
-                callReply = stub.receive(req);
+            if(rmi.equals("receiveCycle")) {
+            	System.out.println("Call: receiveCycle");
+                stub.receiveCycle();
+                System.out.println("Call: receiveCycle --- -");
+            }
+            else if(rmi.equals("removePref")) {
+            	System.out.println("Call: removePref");
+                stub.removePref(req);
+                System.out.println("Call: removePref --- -");
+            }
+            else if(rmi.equals("receiveOk")) {
+            	System.out.println("Call: receiveOk");
+                System.out.println("Call: receiveOk --- -");
+                stub.receiveOk(req);
+            }
             else
                 System.out.println("Wrong parameters!");
         } catch(Exception e){
+        	System.out.println("- - - --- - -caught exception in call "+e);
             return null;
         }
         return callReply;
     }
 	
-	// Dummy function instead of messaging (Call)
-	public Response sendMsg(String rmi, Request req, Agent agent) {
-		Response callReply = null;
-		if (rmi.equals("Cycle")) {
-			callReply = agent.receiveMsg(req);
-		} else if (rmi.equals("ok")) {
-			callReply = agent.receiveMsg(req);
-		}
-		else if (rmi.equals("Remove")){
-		}
-		return callReply;
-	}
-	
-	public void remove(int house) {
-		pref.remove(house);
-	}
-	
-	// Dummy function instead of messaging (receive)
-	public Response receiveMsg(Request req) {
-		Response response = null;
-		this.inCycle = true;
-		for (Agent child: this.children) {
-			this.sendMsg("Cycle", req, child);
-		}
-		return response;
-	}
-
-	public Response receive(Request req) {
-		Response response = null;
-		this.inCycle = true;
-		for (Agent child: this.children) {
-			this.Call("Cycle", req, child);
-		}
-		return response;
-	}
+	public void Kill(){
+        if(this.registry != null){
+            try {
+                UnicastRemoteObject.unexportObject(this.registry, true);
+            } catch(Exception e){
+                System.out.println("None reference");
+            }
+        }
+    }
 
 }

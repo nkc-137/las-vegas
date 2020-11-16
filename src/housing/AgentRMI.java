@@ -2,9 +2,8 @@ package housing;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-public interface AgentRMI extends Remote{
-//    Response Prepare(Request req) throws RemoteException;
-//    Response Accept(Request req) throws RemoteException;
-//    Response Decide(Request req) throws RemoteException; 
-    Response receive(Request req) throws RemoteException; 
+public interface AgentRMI extends Remote {
+    void receiveCycle() throws RemoteException; //tell children that cycle detected
+    void removePref(Request request) throws RemoteException; //remove house from pref list
+    void receiveOk(Request request) throws RemoteException; //send ok to other nodes
 }
